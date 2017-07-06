@@ -1,0 +1,60 @@
+#!/usr/bin/env python
+import psutil, traceback, uuid, sys, os, subprocess, shlex, getcher
+from threading import Thread
+def is_running():
+    cnt = 0
+    for pid in psutil.pids():
+        p = psutil.Process(pid)
+    
+        if p.name() == "python" and len(p.cmdline()) > 1 and "master.py" in p.cmdline()[1]:
+            cnt += 1
+    return cnt
+
+def run_command(command):
+    process = subprocess.Popen(shlex.split(command), stdout=subprocess.PIPE)
+    while True:
+        output = process.stdout.readline()
+        if output == '' and process.poll() is not None:
+            break
+        if output:
+            print output.strip()
+    rc = process.poll()
+    return rc
+
+
+def threaded_function():
+    getch = getcher._Getch()
+    while True:
+        c = getch()
+        if c == "s":
+            print "fava"
+
+
+if __name__ == '__main__':
+    debug = 1
+    path = '~/Dropbox/gamesandshit/term-in-ale/'
+
+    if not is_running():
+        try:
+            #command = shlex.split("bash -c 'python getcher.py; exec bash'")
+            #p2 = subprocess.Popen(command)
+            #os.system("python getcher.py")
+
+
+
+            #thread = Thread(target = threaded_function)
+            #thread.start()
+            #thread.join()
+            if debug:
+                command = shlex.split("""x-terminal-emulator -e 'bash -c "python {}master.py {}; exec bash" ' """.format(path, os.getppid()))
+            else:
+                command = shlex.split("""x-terminal-emulator -e 'bash -c "python {}master.py {}; exit; exec bash" ' """.format(path, os.getppid()))
+            p = subprocess.Popen(command, stdin = subprocess.PIPE)
+            
+
+            
+
+        except:
+            traceback.print_exc()
+    else:
+        print "Term-in-ale is already running"

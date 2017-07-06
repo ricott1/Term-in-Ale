@@ -1,0 +1,576 @@
+import time,sys,random,os, math
+import ability, race, job, character, world
+                
+class Character(object):
+    def __init__(self,data, job, race, protagonist = None, generation=0):
+        self.id = data["id"]
+        self.name = data["name"]
+        self.protagonist = protagonist
+        
+        self.job = job
+        self.race = race
+        self.strategy = self.job.strategy
+            
+        self.description = []
+        self.generation = generation
+        self.mission = None
+        self.recoil = 10 + random.random() * 75
+        
+       
+        
+        self.level = 1
+        self.exp = 0
+        
+        self.HB_damage = 0
+        self.BTH_damage = 0
+        self.HP_damage = 0
+        self.bonus = {"BTH" : 0, "HP" : 0, "HB" : 0, "RES" : 0, "STR" : 0, "DEX" : 0, "SPD" : 0, "MAG" : 0, "RTM" : 0}
+        self.immunities = {"shock" : 0, "mute" : 0, "dream" :0, "death" : 0}
+        self.inventory = data["inventory"]
+        self.equipment = data["equipment"] #key = type, value = object
+        #base value is the bare character value, without objects
+        self._BTH, self.BTH = data["BTH"], data["BTH"]
+        
+        
+        self._HP, self.HP = data["HP"], data["HP"]
+        self._STA, self.STA = data["HP"], data["HP"]
+        self._HB, self.HB = data["HB"], data["HB"]
+        
+        self._RES, self.RES = data["RES"], data["RES"]
+        self._STR, self.STR = data["STR"], data["STR"]
+        
+        self._DEX, self.DEX = data["DEX"], data["DEX"]
+        self._SPD, self.SPD = data["SPD"], data["SPD"]
+        
+        self._MAG, self.MAG = data["MAG"], data["MAG"]
+        self._RTM, self.RTM = data["RTM"], data["RTM"]
+        
+        self.acquiredTargets = []
+        self.print_action = ""
+        self.action_time = 0
+        self._is_shocked = 0
+        self._is_muted = 0
+        self._is_dreaming = 0 
+        self._is_dead = 0 
+             
+        self.is_shocked = 0
+        self.is_muted = 0
+        self.is_dreaming = 0 
+        self.is_dead = 0
+        
+        
+        self.on_rythm = 0
+        self.is_catching_breath = 0
+        
+        self.abilities = {"offense" : ability.Attack()}#, "defense" , "recover", "special",'support"
+        #attributes that print the ongoing action
+        self.print_action = ""
+        self.action_time = 0
+        
+        self.is_moving = 0
+        self.master_location_path = None
+        self.world = None
+        self.location = None
+        
+        
+       
+        self.restore()
+        
+     
+     
+    @property
+    def BTH(self):
+        bonus = sum([self.equipment[obj].bonus["BTH"] for obj in self.equipment])
+        return max(0, int(round(self._BTH +  self.bonus["BTH"] + self.race.bonus["BTH"] + self.job.bonus["BTH"] + bonus - self.BTH_damage)))  
+    @BTH.setter
+    def BTH(self, value):
+        self._BTH = int(round(value))            
+    
+    @property
+    def max_BTH(self):
+        bonus = sum([self.equipment[obj].bonus["BTH"] for obj in self.equipment])
+        return max(0, int(round(self._BTH +  self.bonus["BTH"] + self.race.bonus["BTH"] + self.job.bonus["BTH"] + bonus)))
+        
+    
+    
+    @property
+    def HP(self):
+        bonus = sum([self.equipment[obj].bonus["HP"] for obj in self.equipment])
+        return max(0, int(round(self._HP +  self.bonus["HP"] + self.race.bonus["HP"] + self.job.bonus["HP"] + bonus - self.HP_damage)))  
+    @HP.setter
+    def HP(self, value):
+        self._HP = int(round(value))
+        
+    @property
+    def max_HP(self):
+        bonus = sum([self.equipment[obj].bonus["HP"] for obj in self.equipment])
+        return max(0, int(round(self._HP +  self.bonus["HP"] + self.race.bonus["HP"] + self.job.bonus["HP"] + bonus)))  
+        
+        
+    @property
+    def STA(self):
+        return min(self.HP, max(0, self._STA))
+    @STA.setter
+    def STA(self, value):
+        self._STA = min(self.HP, max(0, value))  
+            
+    @property
+    def HB(self):
+        bonus = sum([self.equipment[obj].bonus["HB"] for obj in self.equipment])
+        return max(0, int(self._HB + self.bonus["HB"]  + self.race.bonus["HB"] + self.job.bonus["HB"] + bonus + self.HB_damage))
+    @HB.setter
+    def HB(self, value):
+        self._HB = max(0, int(round(value)))
+        
+    @property
+    def max_HB(self):
+        bonus = sum([self.equipment[obj].bonus["HB"] for obj in self.equipment])
+        return max(0, int(self._HB + self.bonus["HB"]  + self.race.bonus["HB"] + self.job.bonus["HB"] + bonus))
+        
+                  
+    @property
+    def STR(self):
+        bonus = sum([self.equipment[obj].bonus["STR"] for obj in self.equipment])
+        return max(1, int(self._STR + self.bonus["STR"] + self.race.bonus["STR"] + self.job.bonus["STR"] + bonus))
+    @STR.setter
+    def STR(self, value):
+        self._STR = max(0, int(round(value)))
+    @property
+    def STRmod(self):
+        return int((self.STR-10)/2)
+    
+               
+    @property
+    def SPD(self):
+        bonus = sum([self.equipment[obj].bonus["SPD"] for obj in self.equipment])
+        return max(1, int(self._SPD + self.bonus["SPD"] + self.race.bonus["SPD"] + self.job.bonus["SPD"] + bonus))
+    @SPD.setter
+    def SPD(self, value):
+        self._SPD = max(0, int(round(value)))
+    @property
+    def SPDmod(self):
+        return int((self.SPD-10)/2) 
+                  
+    @property
+    def DEX(self):
+        bonus = sum([self.equipment[obj].bonus["DEX"] for obj in self.equipment])
+        return max(1, int(self._DEX + self.bonus["DEX"] + self.race.bonus["DEX"] + self.job.bonus["DEX"] + bonus))
+    @DEX.setter
+    def DEX(self, value):
+        self._DEX = max(0, int(round(value)))
+    @property
+    def DEXmod(self):
+        return int((self.DEX-10)/2)
+                  
+    @property
+    def MAG(self):
+        bonus = sum([self.equipment[obj].bonus["MAG"] for obj in self.equipment])
+        if self.is_muted:
+            return  max(1, int(bonus))
+        else:        
+            return max(1, int(self._MAG + self.bonus["MAG"] + self.race.bonus["MAG"] + self.job.bonus["MAG"] + bonus))
+    @MAG.setter
+    def MAG(self, value):
+        self._MAG = max(0, int(round(value)))
+    @property
+    def MAGmod(self):
+        return int((self.MAG-10)/2)
+               
+    @property
+    def RES(self):
+        bonus = sum([self.equipment[obj].bonus["RES"] for obj in self.equipment])
+        if self.is_shocked:
+            return  max(1, int(bonus))
+        else:        
+            return max(1, int(self._RES + self.bonus["RES"] + self.race.bonus["RES"] + self.job.bonus["RES"] + bonus))
+    @RES.setter
+    def RES(self, value):
+        self._RES = max(0, int(round(value)))
+    @property
+    def RESmod(self):
+        return int((self.RES-10)/2)
+           
+    @property
+    def RTM(self):
+        bonus = sum([self.equipment[obj].bonus["RTM"] for obj in self.equipment]) + self.race.bonus["RTM"] + self.job.bonus["RTM"]
+        return max(1, int(self._RTM + self.bonus["RTM"] + bonus))
+    @RTM.setter
+    def RTM(self, value):
+        self._RTM = max(0, int(round(value)))
+    
+    @property
+    def recoil(self):
+        return self._recoil
+    @recoil.setter
+    def recoil(self, value):
+        self._recoil = min(100, max(0, value))
+    
+      
+    @property
+    def is_shocked(self):
+        return self._is_shocked
+    @is_shocked.setter
+    def is_shocked(self, value):
+        self._is_shocked = value
+        if self.immunities["shock"]:
+            self._is_shocked = 0
+        else:
+            for obj in self.equipment:
+                if self.equipment[obj].immunities["shock"]:
+                    self._is_shocked = 0
+                    break
+    @property
+    def is_muted(self):
+        return self._is_muted
+    @is_muted.setter
+    def is_muted(self, value):
+        self._is_muted = value
+        if self.immunities["mute"]:
+            self._is_muted = 0
+        else:
+            for obj in self.equipment:
+                if self.equipment[obj].immunities["mute"]:
+                    self._is_muted = 0
+                    break
+    @property
+    def is_dreaming(self):
+        return self._is_dreaming
+    @is_dreaming.setter
+    def is_dreaming(self, value):
+        self._is_dreaming = value
+        if self.immunities["dream"]:
+            self._is_dreaming = 0
+        else:
+            for obj in self.equipment:
+                if self.equipment[obj].immunities["dream"]:
+                    self._is_dreaming = 0
+                    break      
+              
+    @property
+    def is_dead(self):
+        return self._is_dead
+    @is_dead.setter
+    def is_dead(self, value):
+        if value > 0:
+            if self.immunities["death"]:
+                self._is_dead = 0
+            else:
+                for obj in self.equipment:
+                    if self.equipment[obj].immunities["death"]:
+                        self._is_dead = 0
+                        break
+                else:
+                    self._is_dead = value
+                    self.HB_damage = -self.max_HB
+                    self.BTH_damage = self.max_BTH
+                    self.STA = 0
+                    self.HP_damage = self.max_HP
+                    self.is_catching_breath = 0
+                    self.recoil = 100
+                        
+        #else:
+        #    self.restore()
+
+    def all_abilities(self):
+        obj_abilities = {}
+        for obj in self.equipment:
+            obj_abilities.update(self.equipment[obj].abilities)
+         
+        allAb = self.abilities.copy()
+        allAb.update(obj_abilities)
+        allAb.update(self.job.abilities)
+        allAb.update(self.race.abilities)
+        return allAb
+        
+    def allImmunities(self):
+        all_immunities = {}
+        for obj in self.equipment:
+            for im in self.equipment[obj].immunities:
+                if self.equipment[obj].immunities[im]:
+                    all_immunities[im] = self.equipment[obj].immunities[im]
+        for im in self.immunities:
+            if self.immunities[im]:
+                all_immunities[im] = self.immunities[im]
+        return all_immunities
+        
+    def update(self,DELTATIME):
+        self.action_time -= DELTATIME
+        if self.action_time <= 0:
+            self.action_time = 0
+            self.print_action = ""
+        if self.HP <= 0 or self.max_BTH <= 0 or self.HB <= 0:
+            self.is_dead = 1
+        if self.is_dead:
+            return
+        abilities = self.all_abilities()    
+        for a in abilities:
+            abilities[a].on_update(DELTATIME, self)
+        for i in self.immunities:
+            if self.immunities[i]>0:
+                self.immunities[i] = max(0, self.immunities[i] - DELTATIME )    
+        
+            
+        self.recoil -= 1.5 * DELTATIME * (6 + self.SPDmod)
+        
+        #BTH part
+        if  self.is_catching_breath == 0 and self.BTH <= 0:
+            self.is_catching_breath = self.time_to_catch_breath()
+        elif self.is_catching_breath > 0:
+            self.is_catching_breath -= DELTATIME * (1. + self.HB/200.)
+            if self.is_catching_breath <= 0:
+                self.catchBreath()
+                self.is_catching_breath = 0
+        else:
+            self.BTH_damage += DELTATIME * (1. + self.HB/100.)
+        
+        #HP part     
+        self.HP_damage = max(0, self.HP_damage - 10 * DELTATIME / (self.HB + 50.))
+        self.STA += DELTATIME       
+        
+        if self.is_dreaming > 0:
+            self.HP_damage = max(0, self.HP_damage - 5 * DELTATIME / (self.HB + 50.))
+            self.BTH_damage -= 0.25 * DELTATIME * (1. + self.HB/100.)
+            self.HB_damage = max(0, self.HB_damage - 0.1 * DELTATIME ) 
+            
+        if self.is_shocked == 0:
+            N = (1.+math.exp((self.HB_damage)/100.))
+            self.HB_damage = max(0, self.HB_damage - DELTATIME /N) 
+           
+        #check rithm changing state
+        for i in xrange(1, self.RTM + 1):
+            if self.max_BTH*(1.*i/(self.RTM+1)  - 0.025) < self.BTH_damage < self.max_BTH*(1.*i/(self.RTM+1) + 0.025):
+                self.on_rythm = 2
+                break
+            elif self.max_BTH*(1.*i/(self.RTM+1)  - 0.05) < self.BTH_damage < self.max_BTH*(1.*i/(self.RTM+1) + 0.05):
+                self.on_rythm = 1
+                break
+            
+        else:
+            self.on_rythm = 0
+            
+        #if no stamina gets shocked
+        if self.STA < 0.1 * self.HP and self.is_shocked == 0:
+            self.is_shocked += DELTATIME
+        elif self.is_shocked > 0 and self.STA >= 0.1 * self.max_BTH:
+            self.is_shocked = max(0,self.is_shocked - DELTATIME )            
+        if self.is_muted >0:
+            self.is_muted = max(0,self.is_muted - DELTATIME )
+            
+        #if self.is_dead >0:
+        #    self.is_dead = max(0,self.is_dead - DELTATIME )
+        if self.location.path != self.master_location_path and self.recoil == 0 and self.is_dreaming == 0:
+            self.move()
+            
+        elif self.recoil == 0 and self.is_dreaming == 0:
+            self.take_action()  
+            
+    def time_to_catch_breath(self):
+        return self.max_BTH/1.5
+        
+    def catchBreath(self):
+        self.BTH_damage = 0
+        self.STA += 0.5*self.HP
+           
+    def restore(self):
+        self.HB_damage = 0
+        self.BTH_damage = 0
+        self.HP_damage = 0
+        for k in self.bonus:
+            self.bonus[k] = max(self.bonus[k], 0)
+        
+        self.is_shocked = 0
+        self.is_muted = 0
+        self.is_dead = 0
+        
+        self.is_catching_breath = 0
+        
+        #self.print_action = ""
+        #self.action_time = 0
+        
+    def add_experience(self, exp):
+        self.exp += exp
+        while self.exp>= self.level**2*1000:
+            self.level_up()
+          
+    def level_up(self):
+        
+        self.level += 1
+        self.job.level_up()
+        self.restore()
+        
+       
+    def take_action(self):
+        targets = self.strategy.pick_target(self, self.location.characters)
+        all_abilities = self.all_abilities()
+        #else use abilitites with no target? like recover? or recover directly?also, what if muted? can i pick an illegal ability?:
+        if targets:
+            abilities = all_abilities
+        else:
+            abilities = {ab: all_abilities[ab] for ab in all_abilities if not all_abilities[ab].has_target}
+        if abilities:
+            kind = self.strategy.pick_ability(abilities)
+            if not abilities[kind].has_target:
+                abilities[kind].use(self, False)
+                
+            if abilities[kind].has_target == 'single':
+                target = targets[0]
+                abilities[kind].use(self, target)
+                if target.HP<=0:
+                    self.add_experience(10000 * target.level)
+            elif abilities[kind].has_target == 'all':
+                abilities[kind].use(self, targets)
+                for target in targets:
+                    if target.HP<=0:
+                        self.add_experience(10000 * target.level)
+        else:
+            self.print_action = "No target available"
+            
+        
+    def move(self):
+        if self.is_dead == 0 and self.is_dreaming == 0 and self.recoil==0:
+            self.recoil += 50 
+            
+            target_loc = self.master_location_path.split("/")
+            my_loc = self.location.path.split("/")
+            
+            if len(target_loc) > len(my_loc):
+                path = "/".join(target_loc[:len(my_loc) + 1])
+            elif len(target_loc) < len(my_loc):
+                path = "/".join(my_loc[:-1])
+            else:
+                path = "/".join(my_loc[:-1])
+                
+            self.location.characters.remove(self)
+            self.location = self.get_location_from_path(path)
+            self.location.characters.append(self)
+            self.add_experience(1000) 
+               
+    def get_location_from_path(self, path):
+        for r in self.world.locations:
+            if r.path == path:
+                return r
+                
+        else:
+            self.world.add_location(path)
+            return self.get_location_from_path(path)
+            
+    def add_inventory(self, obj):
+        self.location.inventory.remove(obj)
+        obj.location = self
+        self.inventory.append(obj)
+        
+    def remove_inventory(self, obj):
+        obj.location = self.location
+        obj.location.inventory.append(obj)
+        self.unequip(obj)
+        self.inventory.remove(obj)
+            
+    def equip(self, obj):
+        if obj.type in self.equipment:
+            self.equipment[obj.type].on_unequip(self)
+        self.equipment[obj.type] = obj
+        obj.onEquip(self)
+        
+    def unequip(self, obj):
+        if obj.type in self.equipment and self.equipment[obj.type] == obj:
+            self.equipment.pop(obj.type)
+            obj.on_unequip(self)
+    
+    def pick_up(self, item):
+        self.recoil += 100
+        self.add_inventory(item)
+        self.print_action = "Picked up: {}".format(item.name)
+        self.action_time = 5.0        
+         
+class Villain(Character):
+    pass
+    
+    
+class Player(Character):
+    def take_action(self):
+        targets = self.strategy.pick_target(self, self.location.characters)
+        all_abilities = self.all_abilities()
+        #can i pick an illegal ability? yes for the moment, reasoning being that in that case you just "wait", maybe i should change this
+        if targets:
+            abilities = all_abilities
+        else:
+            abilities = {ab: all_abilities[ab] for ab in all_abilities if not all_abilities[ab].has_target}
+            
+        if abilities and targets:
+            kind = self.strategy.pick_ability(abilities)
+            if not abilities[kind].has_target:
+                abilities[kind].use(self, False)
+                
+            elif abilities[kind].has_target == 'single':
+                target = targets[0]
+                abilities[kind].use(self, target)
+                if target.HP<=0:
+                    self.add_experience(10000 * target.level)
+            elif abilities[kind].has_target == 'all':
+                abilities[kind].use(self, targets)
+                for target in targets:
+                    if target.HP<=0:
+                        self.add_experience(10000 * target.level)
+                
+        elif self.location.inventory:
+            item = self.location.inventory[0]
+            self.pick_up(item)
+         
+        elif abilities:
+            kind = self.strategy.pick_ability(abilities)
+            if not abilities[kind].has_target:
+                abilities[kind].use(self, False)    
+
+    def add_experience(self, exp):
+        self.exp += exp
+        while self.exp>= self.level**2*1000:
+            self.level_up()
+        self.protagonist.data["jobs"][self.job.name] = self.exp    
+        
+            
+class Protagonist(object):
+    def __init__(self,data):
+        self.id = data["id"]
+        self.name = data["name"] 
+        self.data = data
+        self.players = []  
+        self.worlds = []  
+        self.jobs = {"Student" : 1}
+        
+    def generate(self, generation=0):
+        path = os.getcwd()
+        if generation > 0:
+            path = self.players[generation-1].location.path
+            
+        if len(self.worlds) <= generation:
+            w = world.World(generation=generation)
+            self.worlds.append(w)
+            
+        job_name = random.sample(self.data["jobs"], 1)[0]
+        race_name = random.sample(self.data["races"], 1)[0] 
+        
+        for j in dir(globals()["job"]):
+            if j == job_name:
+                pjob = getattr(job, j)()
+        #else:
+        #    self.job = job.Student() 
+        
+        for r in dir(globals()["race"]):
+            if r == race_name:
+                prace = getattr(race, r)()
+        #else:
+        #    self.race = race.Human()
+            
+        player = Player(self.data, job=pjob, race=prace, protagonist = self, generation=generation)
+        player.add_experience(self.data["jobs"][job_name])
+        player.master_location_path = path
+        player.world = self.worlds[generation]
+        player.location = player.get_location_from_path(path)
+        player.location.characters.append(player)    
+        self.players.append(player)
+        
+
+        
+            
+   
+ 

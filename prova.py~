@@ -1,0 +1,5 @@
+a = {'a' :3, 'b':2}
+
+b = {'a':45}
+
+print a.update(b)

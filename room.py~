@@ -1,0 +1,7 @@
+class Room(object):
+	def __init__(self, path):
+		self.path = path
+		
+		self.events = {} #key = event, value = switch
+		self.villains = []
+		self.lootings = []
