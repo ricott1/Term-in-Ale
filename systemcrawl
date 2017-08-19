@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import psutil, traceback, uuid, sys, os, subprocess, shlex, getcher
+import psutil, traceback, uuid, sys, os, subprocess, shlex
 from threading import Thread
 def is_running():
     cnt = 0
@@ -32,7 +32,7 @@ def threaded_function():
 
 if __name__ == '__main__':
     debug = 1
-    path = '~/Dropbox/gamesandshit/term-in-ale/'
+    path = '~/Dropbox/gamesandshit/Term-in-Ale/'
 
     if not is_running():
         try:
