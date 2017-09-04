@@ -2,9 +2,7 @@ import time, datetime, os, sys, uuid, random
 import character, gui
 import dill
 import subprocess
-from os.path import expanduser
-HOME = expanduser("~")
-
+path =  os.path.dirname(os.path.realpath(__file__))
 RANDOM_NAMES = ("Gorbacioff", "Gundam", "Pesca", "Lukiko","Armando","Mariella","Formaggio","Pancrazio","Tancredi","Swallace","Faminy","Pertis","Pericles","Atheno","Mastella","Ciriaco")
 
 
@@ -34,7 +32,7 @@ class Master(object):
  
     def save_game(self):
         filename = "{}.tiac".format(self.protagonist.name + get_time())
-        with open("{}".format("{}/Dropbox/gamesandshit/term-in-ale/data/{}".format(HOME,filename)), "w+") as f:
+        with open("{}/data/{}".format(path, filename), "w+") as f:
             dill.dump(self.protagonist.data, f)
        
     def quick_protagonist(self, generation=0):
