@@ -21,10 +21,6 @@ def run_command(command):
     rc = process.poll()
     return rc
 
-
-
-
-
 if __name__ == '__main__':
     debug = 1
     path =  os.path.dirname(os.path.realpath(__file__))
