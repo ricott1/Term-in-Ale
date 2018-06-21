@@ -31,6 +31,9 @@ if __name__ == '__main__':
     path =  os.path.dirname(os.path.realpath(__file__))
     if not is_running():
         try:
+            #thread = Thread(target = keylogger.hook_thread)
+            #thread.start()
+            #thread.join()
             if debug:
                 command = shlex.split("""x-terminal-emulator -e 'bash -c "python {}/master.py {}; exec bash" ' """.format(path, os.getppid()))
             else:
